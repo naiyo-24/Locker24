@@ -82,11 +82,12 @@ const Sidebar = () => {
     { icon: Files, label: 'All Documents', path: '/documents' },
     { icon: History, label: 'Activity Log', path: '/activity' },
   ];
-
   const bottomItems = [
     { icon: User, label: 'My Profile', path: '/profile' },
     { icon: Settings, label: 'Settings', path: '/settings' },
-  ]  const NavItem = ({ icon: Icon, label, path }) => (
+  ];
+
+  const NavItem = ({ icon: Icon, label, path }) => (
     <NavLink
       to={path}
       className={({ isActive }) => clsx(
