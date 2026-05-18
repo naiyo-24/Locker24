@@ -171,6 +171,12 @@ Locker 24 takes digital privacy extremely seriously:
 
 ## ⚙️ Environment Configuration
 
+> [!WARNING]
+> **🔒 CRITICAL SECURITY NOTICE**:
+> **NEVER commit actual passwords, private API tokens, database connection credentials, secret keys, or Firebase keys to GitHub!**
+> 
+> The root [.gitignore](file:///d:/Locker24/.gitignore) has been pre-configured to automatically exclude your local `.env` files in both the `backend/` and `frontend/` folders from being tracked by Git. Always keep your real production and staging credentials safely in these ignored `.env` files, and never push them to a public or private GitHub repository.
+
 You will need to set up environment variables in both `backend` and `frontend` directories.
 
 ### 🛡️ Backend (`backend/.env`)
