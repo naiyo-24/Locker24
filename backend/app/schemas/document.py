@@ -16,6 +16,7 @@ class DocumentResponse(DocumentBase):
     size: str
     created_at: datetime
     owner_id: int
+    folder_id: Optional[int] = None
 
     class Config:
         from_attributes = True

@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class Document(Base):
@@ -13,3 +14,7 @@ class Document(Base):
     is_sensitive = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     owner_id = Column(Integer, ForeignKey("users.id"))
+    folder_id = Column(Integer, ForeignKey("folders.id"), nullable=True)
+
+    # Relationship to the parent folder
+    folder = relationship("Folder", back_populates="documents")

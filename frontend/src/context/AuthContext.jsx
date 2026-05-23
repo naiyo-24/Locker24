@@ -5,16 +5,20 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(sessionStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
-  const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+  // Dynamically resolve API URL to support mobile network access
+  const envApiUrl = import.meta.env.VITE_API_URL;
+  const API_URL = envApiUrl && (envApiUrl.includes('127.0.0.1') || envApiUrl.includes('localhost')) && window.location.hostname !== '127.0.0.1' && window.location.hostname !== 'localhost'
+    ? `${window.location.protocol}//${window.location.hostname}:8018` 
+    : envApiUrl || `${window.location.protocol}//${window.location.hostname}:8018`;
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
+    const savedUser = sessionStorage.getItem('user');
+    const savedToken = sessionStorage.getItem('token');
     if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
       setToken(savedToken);
@@ -50,8 +54,8 @@ export const AuthProvider = ({ children }) => {
       
       setUser(data.user);
       setToken(data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.access_token);
+      sessionStorage.setItem('user', JSON.stringify(data.user));
+      sessionStorage.setItem('token', data.access_token);
       
       navigate('/dashboard');
     } catch (error) {
@@ -63,8 +67,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
     navigate('/login');
   };
 
@@ -87,8 +91,8 @@ export const AuthProvider = ({ children }) => {
       
       setUser(data.user);
       setToken(data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.access_token);
+      sessionStorage.setItem('user', JSON.stringify(data.user));
+      sessionStorage.setItem('token', data.access_token);
       
       navigate('/dashboard');
     } catch (error) {

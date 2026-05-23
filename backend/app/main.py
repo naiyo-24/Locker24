@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import auth, documents, upload, share, activity
+from app.api.routes import auth, documents, upload, share, activity, folders, search
 
 app = FastAPI(
     title="Locker 24 API",
@@ -26,10 +26,21 @@ app.include_router(documents.router, prefix="/api/documents", tags=["documents"]
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 app.include_router(share.router, prefix="/api/share", tags=["sharing"])
 app.include_router(activity.router, prefix="/api/activity", tags=["activity"])
+app.include_router(folders.router, prefix="/api/folders", tags=["folders"])
+app.include_router(search.router, prefix="/api/search", tags=["search"])
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to Locker 24 API", "status": "active"}
+
+# Auto-create any new tables (e.g. folders) without breaking existing data
+try:
+    from app.core.database import engine, Base
+    from app.models import folder as _folder_model  # noqa — ensures Folder is registered
+    from app.models import document as _doc_model    # noqa — ensures Document is registered
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Could not auto-create tables: {e}")
 
 # Self-healing database startup task to guarantee 'admin' user with password 'admin' exists
 try:

@@ -160,7 +160,8 @@ const CategoryDetailsPage = () => {
           data = data.filter(doc => 
             !standardCategories.includes(doc.category) && 
             !trashed.includes(doc.id) && 
-            !archived.includes(doc.id)
+            !archived.includes(doc.id) &&
+            !doc.folder_id
           );
         } else if (id === 'shared') {
           const shareRes = await fetch(`${API_URL}/api/share/`, {
@@ -169,19 +170,19 @@ const CategoryDetailsPage = () => {
           if (shareRes.ok) {
             const shares = await shareRes.json();
             const sharedDocIds = shares.map(s => s.document_id);
-            data = data.filter(doc => sharedDocIds.includes(doc.id) && !trashed.includes(doc.id));
+            data = data.filter(doc => sharedDocIds.includes(doc.id) && !trashed.includes(doc.id) && !doc.folder_id);
           } else {
             data = [];
           }
         } else if (id === 'favorites') {
-          data = data.filter(doc => starred.includes(doc.id) && !trashed.includes(doc.id));
+          data = data.filter(doc => starred.includes(doc.id) && !trashed.includes(doc.id) && !doc.folder_id);
         } else if (id === 'archived') {
-          data = data.filter(doc => archived.includes(doc.id) && !trashed.includes(doc.id));
+          data = data.filter(doc => archived.includes(doc.id) && !trashed.includes(doc.id) && !doc.folder_id);
         } else if (id === 'trash') {
           data = data.filter(doc => trashed.includes(doc.id));
         } else {
           // Standard categories
-          data = data.filter(doc => !trashed.includes(doc.id) && !archived.includes(doc.id));
+          data = data.filter(doc => !trashed.includes(doc.id) && !archived.includes(doc.id) && !doc.folder_id);
         }
         
         setDocuments(data);

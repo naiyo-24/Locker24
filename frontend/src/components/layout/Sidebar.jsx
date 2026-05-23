@@ -10,6 +10,7 @@ import {
   Lock,
   History,
   FolderOpen,
+  Folder,
   User,
   DownloadCloud,
   X,
@@ -81,6 +82,7 @@ const Sidebar = () => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: FolderOpen, label: 'Categories', path: '/categories' },
+    { icon: Folder, label: 'My Folders', path: '/folders' },
     { icon: Files, label: 'All Documents', path: '/documents' },
     // { icon: Star, label: 'Starred', path: '/categories/favorites' },
     // { icon: Archive, label: 'Archived', path: '/categories/archived' },

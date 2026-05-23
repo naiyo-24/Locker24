@@ -7,7 +7,7 @@ from app.models.document import Document
 from app.services.storage_service import storage_service
 from app.services.activity_service import activity_service
 from app.schemas.document import DocumentResponse
-from app.utils.file_utils import format_size
+from app.utils.file_utils import format_size, parse_size
 import os
 
 router = APIRouter()
@@ -17,6 +17,7 @@ async def upload_document(
     file: UploadFile = File(...),
     category: str = Form("Personal"),
     is_sensitive: bool = Form(False),
+    folder_id: int = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -25,6 +26,14 @@ async def upload_document(
     Saves the file to local storage and creates a record in the database.
     """
     try:
+        # Check overall storage limit first (15 GB)
+        LIMIT_BYTES = 15 * 1024 * 1024 * 1024
+        user_docs = db.query(Document).filter(Document.owner_id == current_user.id).all()
+        current_used_bytes = sum(parse_size(doc.size) for doc in user_docs)
+        
+        if current_used_bytes >= LIMIT_BYTES:
+            raise HTTPException(status_code=413, detail="Storage limit of 15 GB reached. Upgrade or delete files to upload more.")
+
         # Create a user-specific folder
         user_folder = f"user_{current_user.id}"
         
@@ -33,6 +42,11 @@ async def upload_document(
         
         # Get file size
         file_size_bytes = os.path.getsize(file_path)
+        
+        if current_used_bytes + file_size_bytes > LIMIT_BYTES:
+            storage_service.delete_file(file_path)
+            raise HTTPException(status_code=413, detail="File too large. This upload exceeds your 15 GB storage limit.")
+
         readable_size = format_size(file_size_bytes)
         
         # Create database record
@@ -42,7 +56,8 @@ async def upload_document(
             size=readable_size,
             category=category,
             is_sensitive=is_sensitive,
-            owner_id=current_user.id
+            owner_id=current_user.id,
+            folder_id=folder_id if folder_id else None
         )
         
         db.add(new_doc)

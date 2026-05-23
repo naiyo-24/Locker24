@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -8,23 +8,39 @@ import {
   AlertCircle,
   Loader2,
   Shield,
-  Tag
+  Tag,
+  FolderOpen
 } from 'lucide-react';
 import Button from '../common/Button';
 
-const UploadModal = ({ isOpen, onClose, onUploadSuccess, token, API_URL }) => {
+const UploadModal = ({ isOpen, onClose, onUploadSuccess, token, API_URL, defaultFolderId = null }) => {
   const [file, setFile] = useState(null);
   const [category, setCategory] = useState('Personal');
   const [customCategory, setCustomCategory] = useState('');
   const [isSensitive, setIsSensitive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState(null); // 'success' | 'error'
+  const [uploadStatus, setUploadStatus] = useState(null); // 'success' | 'error' | 'expired'
+  const [errorMessage, setErrorMessage] = useState('');
+  const [folderId, setFolderId] = useState(defaultFolderId);
+  const [folders, setFolders] = useState([]);
   const fileInputRef = useRef(null);
 
   const categories = [
     'Identity', 'Education', 'Finance', 'Health', 
     'Vehicle', 'Legal', 'Employment', 'Personal', 'Other'
   ];
+
+  // Fetch user folders whenever modal opens
+  useEffect(() => {
+    if (!isOpen || !token) return;
+    setFolderId(defaultFolderId);
+    fetch(`${API_URL}/api/folders/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setFolders)
+      .catch(() => setFolders([]));
+  }, [isOpen, token, API_URL, defaultFolderId]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -43,6 +59,7 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, token, API_URL }) => {
 
     setIsUploading(true);
     setUploadStatus(null);
+    setErrorMessage('');
 
     const finalCategory = category === 'Other' ? (customCategory.trim() || 'Other') : category;
 
@@ -50,6 +67,7 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, token, API_URL }) => {
     formData.append('file', file);
     formData.append('category', finalCategory);
     formData.append('is_sensitive', isSensitive);
+    if (folderId) formData.append('folder_id', folderId);
 
     try {
       const response = await fetch(`${API_URL}/api/upload/`, {
@@ -74,11 +92,18 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, token, API_URL }) => {
         setTimeout(() => {
           window.location.href = '/login?expired=true';
         }, 2500);
+      } else if (response.status === 413) {
+        const errorData = await response.json().catch(() => ({}));
+        setErrorMessage(errorData.detail || 'Storage limit of 15 GB reached.');
+        setUploadStatus('error');
       } else {
+        const errorData = await response.json().catch(() => ({}));
+        setErrorMessage(errorData.detail || 'Upload failed. Try again.');
         setUploadStatus('error');
       }
     } catch (error) {
       console.error('Upload failed:', error);
+      setErrorMessage(error.message || 'Upload failed. Try again.');
       setUploadStatus('error');
     } finally {
       setIsUploading(false);
@@ -91,6 +116,8 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, token, API_URL }) => {
     setCustomCategory('');
     setIsSensitive(false);
     setUploadStatus(null);
+    setErrorMessage('');
+    setFolderId(defaultFolderId);
   };
 
   if (!isOpen) return null;
@@ -200,6 +227,25 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, token, API_URL }) => {
               </div>
             </div>
 
+            {/* Folder Selector */}
+            {folders.length > 0 && !defaultFolderId && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 px-1">
+                  <FolderOpen size={12} /> Save to Folder (optional)
+                </label>
+                <select
+                  value={folderId ?? ''}
+                  onChange={(e) => setFolderId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full bg-slate-900 border border-white/5 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-600/20 outline-none transition-all"
+                >
+                  <option value="">— No Folder —</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Custom Category Input */}
             {category === 'Other' && (
               <motion.div 
@@ -236,8 +282,9 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, token, API_URL }) => {
               </motion.div>
             )}
             {uploadStatus === 'error' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-red-500 justify-center font-bold">
-                <AlertCircle size={20} /> Upload failed. Try again.
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-red-500 justify-center font-bold text-center text-sm">
+                <AlertCircle size={20} className="shrink-0" /> 
+                <span>{errorMessage || 'Upload failed. Try again.'}</span>
               </motion.div>
             )}
 

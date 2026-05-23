@@ -176,7 +176,7 @@ const CategoriesPage = () => {
 
   const getRecentDocuments = () => {
     return [...documents]
-      .filter(doc => !isTrashed(doc.id) && !isArchived(doc.id))
+      .filter(doc => !isTrashed(doc.id) && !isArchived(doc.id) && !doc.folder_id)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, 8);
   };
@@ -259,24 +259,24 @@ const CategoriesPage = () => {
   const getCategoryCount = (catId, catName) => {
     if (catId === 'other') {
       const standardCategories = ['Identity', 'Education', 'Finance', 'Health', 'Vehicle', 'Legal', 'Employment', 'Personal'];
-      return documents.filter(doc => !standardCategories.includes(doc.category) && !isTrashed(doc.id) && !isArchived(doc.id)).length;
+      return documents.filter(doc => !standardCategories.includes(doc.category) && !isTrashed(doc.id) && !isArchived(doc.id) && !doc.folder_id).length;
     }
     if (catId === 'shared') {
       return sharedCount;
     }
     if (catId === 'favorites') {
       const starred = JSON.parse(localStorage.getItem('starred_documents') || '[]');
-      return documents.filter(doc => starred.includes(doc.id) && !isTrashed(doc.id)).length;
+      return documents.filter(doc => starred.includes(doc.id) && !isTrashed(doc.id) && !doc.folder_id).length;
     }
     if (catId === 'archived') {
       const archived = JSON.parse(localStorage.getItem('archived_documents') || '[]');
-      return documents.filter(doc => archived.includes(doc.id) && !isTrashed(doc.id)).length;
+      return documents.filter(doc => archived.includes(doc.id) && !isTrashed(doc.id) && !doc.folder_id).length;
     }
     if (catId === 'trash') {
       const trashed = JSON.parse(localStorage.getItem('trashed_documents') || '[]');
       return documents.filter(doc => trashed.includes(doc.id)).length;
     }
-    return documents.filter(doc => doc.category?.toLowerCase() === catName.toLowerCase() && !isTrashed(doc.id) && !isArchived(doc.id)).length;
+    return documents.filter(doc => doc.category?.toLowerCase() === catName.toLowerCase() && !isTrashed(doc.id) && !isArchived(doc.id) && !doc.folder_id).length;
   };
 
   return (

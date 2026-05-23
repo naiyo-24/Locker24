@@ -53,14 +53,7 @@ const SettingsPage = () => {
   });
   
   // System toggles state
-  const [notifications, setNotifications] = useState({
-    email: true,
-    security: true,
-    reminders: true
-  });
-  const [appLock, setAppLock] = useState(false);
   const [autoArchive, setAutoArchive] = useState(false);
-  const [tfaEnabled, setTfaEnabled] = useState(false);
 
   // Storage metric states
   const [storageUsedBytes, setStorageUsedBytes] = useState(0);
@@ -69,8 +62,6 @@ const SettingsPage = () => {
 
   // Modals & Notices
   const [toastMessage, setToastMessage] = useState(null);
-  const [show2faModal, setShow2faModal] = useState(false);
-  const [showSessionsModal, setShowSessionsModal] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   
   // Custom Vault PIN states
@@ -78,18 +69,6 @@ const SettingsPage = () => {
   const [pinForm, setPinForm] = useState({ newPin: '', confirmPin: '' });
   const [pinError, setPinError] = useState('');
   const [customPinSet, setCustomPinSet] = useState(false);
-
-  // 2FA modal state
-  const [verificationCode, setVerificationCode] = useState('');
-  const [tfaError, setTfaError] = useState('');
-  const [isVerifyingTfa, setIsVerifyingTfa] = useState(false);
-
-  // Sessions list
-  const [sessions, setSessions] = useState([
-    { id: 'sess_1', device: 'Chrome on Windows (Current Session)', ip: '192.168.1.45', active: 'Just Now', current: true },
-    { id: 'sess_2', device: 'Safari on iPhone 15 Pro', ip: '172.56.21.9', active: '3 hours ago', current: false },
-    { id: 'sess_3', device: 'Firefox on macOS Sonoma', ip: '94.23.112.54', active: '2 days ago', current: false }
-  ]);
 
   const parseSizeToBytes = (sizeStr) => {
     if (!sizeStr) return 0;
@@ -147,12 +126,7 @@ const SettingsPage = () => {
     };
 
     // Load local storage preferences
-    const savedNotifications = localStorage.getItem('settings_notifications');
-    if (savedNotifications) setNotifications(JSON.parse(savedNotifications));
-
-    setAppLock(localStorage.getItem('settings_app_lock') === 'true');
     setAutoArchive(localStorage.getItem('settings_auto_archive') === 'true');
-    setTfaEnabled(localStorage.getItem('settings_tfa') === 'true');
     setCustomPinSet(!!localStorage.getItem('vault_lock_pin'));
 
     fetchSettingsData();
@@ -210,20 +184,6 @@ const SettingsPage = () => {
   };
 
   // Toggle Preferences
-  const handleToggleNotification = (key) => {
-    const nextVal = { ...notifications, [key]: !notifications[key] };
-    setNotifications(nextVal);
-    localStorage.setItem('settings_notifications', JSON.stringify(nextVal));
-    showToast('Notification triggers modified.');
-  };
-
-  const handleToggleAppLock = () => {
-    const nextVal = !appLock;
-    setAppLock(nextVal);
-    localStorage.setItem('settings_app_lock', nextVal ? 'true' : 'false');
-    showToast(`App lock protection ${nextVal ? 'enabled' : 'disabled'}.`);
-  };
-
   const handleToggleAutoArchive = () => {
     const nextVal = !autoArchive;
     setAutoArchive(nextVal);
@@ -231,34 +191,10 @@ const SettingsPage = () => {
     showToast(`Automatic archiving ${nextVal ? 'activated' : 'deactivated'}.`);
   };
 
-  // 2FA Setup Flow
-  const handleVerify2fa = () => {
-    if (verificationCode.trim().length !== 6) {
-      setTfaError('Please enter a valid 6-digit code');
-      return;
-    }
-    setIsVerifyingTfa(true);
-    setTfaError('');
-    setTimeout(() => {
-      setIsVerifyingTfa(false);
-      setTfaEnabled(true);
-      localStorage.setItem('settings_tfa', 'true');
-      setShow2faModal(false);
-      setVerificationCode('');
-      showToast('Two-Factor Authentication activated successfully!');
-    }, 1500);
-  };
-
-  const handleDisableTfa = () => {
-    setTfaEnabled(false);
-    localStorage.setItem('settings_tfa', 'false');
-    showToast('Two-Factor Authentication disabled.');
-  };
-
-  // JSON Data Export
+  // CSV Data Export
   const handleExportData = async () => {
     if (!token) return;
-    showToast('Preparing secure backup data package...');
+    showToast('Preparing secure CSV backup data...');
     try {
       const res = await fetch(`${API_URL}/api/documents/`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -272,34 +208,37 @@ const SettingsPage = () => {
       if (res.ok) docs = await res.json();
       if (activityRes.ok) logs = await activityRes.json();
 
-      const backupPackage = {
-        exported_at: new Date().toISOString(),
-        vault_profile: profile,
-        documents: docs,
-        activity_logs: logs,
-        client_settings: {
-          notifications,
-          appLock,
-          autoArchive,
-          tfaEnabled
-        }
-      };
+      let csvContent = "--- DOCUMENTS ---\n";
+      csvContent += "ID,Name,Category,Size,Created At\n";
+      docs.forEach(doc => {
+        const name = `"${doc.name.replace(/"/g, '""')}"`;
+        const category = `"${doc.category || ''}"`;
+        const size = `"${doc.size || ''}"`;
+        csvContent += `${doc.id},${name},${category},${size},${doc.created_at}\n`;
+      });
 
-      const jsonStr = JSON.stringify(backupPackage, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
+      csvContent += "\n--- ACTIVITY LOGS ---\n";
+      csvContent += "ID,Action,Details,Timestamp\n";
+      logs.forEach(log => {
+        const action = `"${log.action || ''}"`;
+        const details = `"${(log.details || '').replace(/"/g, '""')}"`;
+        csvContent += `${log.id},${action},${details},${log.timestamp}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const downloadUrl = URL.createObjectURL(blob);
       
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `Locker24_Secure_Vault_Backup_${new Date().toISOString().slice(0,10)}.json`;
+      link.download = `Locker24_Backup_${new Date().toISOString().slice(0,10)}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      showToast('Backup JSON downloaded successfully.');
+      showToast('Backup CSV downloaded successfully.');
     } catch (e) {
       console.error(e);
-      showToast('Failed to export vault backup data.');
+      showToast('Failed to export CSV backup data.');
     }
   };
 
@@ -444,50 +383,7 @@ const SettingsPage = () => {
             {/* Account & Security Settings */}
             <SettingSection title="Account & Security" icon={Shield}>
               
-              {/* Two-Factor Authentication */}
-              <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                <div>
-                  <div className="font-bold text-slate-200 group-hover:text-primary-400 transition-colors">Two-Factor Authentication</div>
-                  <div className="text-sm text-muted-foreground">Add an extra layer of biometric/security code validation on log in</div>
-                </div>
-                {tfaEnabled ? (
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 py-1 px-2.5 rounded-full">ACTIVE</span>
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-400 font-bold" onClick={handleDisableTfa}>Disable</Button>
-                  </div>
-                ) : (
-                  <Button variant="ghost" size="sm" className="text-primary-500" onClick={() => setShow2faModal(true)}>Configure</Button>
-                )}
-              </div>
-              
-              <div className="h-px bg-white/5"></div>
 
-              {/* Active Sessions */}
-              <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                <div>
-                  <div className="font-bold text-slate-200 group-hover:text-primary-400 transition-colors">Active Sessions</div>
-                  <div className="text-sm text-muted-foreground">Inspect and terminate active web console connections</div>
-                </div>
-                <Button variant="ghost" size="sm" className="text-primary-500" onClick={() => setShowSessionsModal(true)}>View All ({sessions.length})</Button>
-              </div>
-
-              <div className="h-px bg-white/5"></div>
-
-              {/* App Lock Toggle */}
-              <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                <div>
-                  <div className="font-bold text-slate-200 group-hover:text-primary-400 transition-colors">Vault App Lock Protection</div>
-                  <div className="text-sm text-muted-foreground">Automatically lock console UI after 10 minutes of complete inactivity</div>
-                </div>
-                <button 
-                  onClick={handleToggleAppLock}
-                  className={`w-12 h-6 rounded-full transition-all relative ${appLock ? 'bg-primary-600 shadow-[0_0_10px_rgba(2,132,199,0.5)]' : 'bg-slate-800'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${appLock ? 'right-1' : 'left-1'}`}></div>
-                </button>
-              </div>
-
-              <div className="h-px bg-white/5"></div>
 
               {/* Vault Lock PIN Config */}
               <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
@@ -503,56 +399,6 @@ const SettingsPage = () => {
                     {customPinSet ? 'Change PIN' : 'Configure'}
                   </Button>
                 </div>
-              </div>
-            </SettingSection>
-
-            {/* Notification Directives */}
-            <SettingSection title="Notifications" icon={Bell}>
-              
-              {/* Email Notifications */}
-              <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                <div>
-                  <div className="font-bold text-slate-200 group-hover:text-primary-400 transition-colors">Email Security Reports</div>
-                  <div className="text-sm text-muted-foreground">Receive automated reports concerning secure shared file access details</div>
-                </div>
-                <button 
-                  onClick={() => handleToggleNotification('email')}
-                  className={`w-12 h-6 rounded-full transition-all relative ${notifications.email ? 'bg-primary-600 shadow-[0_0_10px_rgba(2,132,199,0.5)]' : 'bg-slate-800'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${notifications.email ? 'right-1' : 'left-1'}`}></div>
-                </button>
-              </div>
-              
-              <div className="h-px bg-white/5"></div>
-
-              {/* Login Alerts */}
-              <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                <div>
-                  <div className="font-bold text-slate-200 group-hover:text-primary-400 transition-colors">Security Warnings</div>
-                  <div className="text-sm text-muted-foreground">Alert instantly on new browser profile logins or failed session tries</div>
-                </div>
-                <button 
-                  onClick={() => handleToggleNotification('security')}
-                  className={`w-12 h-6 rounded-full transition-all relative ${notifications.security ? 'bg-primary-600 shadow-[0_0_10px_rgba(2,132,199,0.5)]' : 'bg-slate-800'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${notifications.security ? 'right-1' : 'left-1'}`}></div>
-                </button>
-              </div>
-
-              <div className="h-px bg-white/5"></div>
-
-              {/* Reminders Toggle */}
-              <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                <div>
-                  <div className="font-bold text-slate-200 group-hover:text-primary-400 transition-colors">Shared Link Expiration Warnings</div>
-                  <div className="text-sm text-muted-foreground">Trigger reminders 24 hours prior to standard share token link closures</div>
-                </div>
-                <button 
-                  onClick={() => handleToggleNotification('reminders')}
-                  className={`w-12 h-6 rounded-full transition-all relative ${notifications.reminders ? 'bg-primary-600 shadow-[0_0_10px_rgba(2,132,199,0.5)]' : 'bg-slate-800'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${notifications.reminders ? 'right-1' : 'left-1'}`}></div>
-                </button>
               </div>
             </SettingSection>
 
@@ -623,127 +469,6 @@ const SettingsPage = () => {
         </div>
       </main>
 
-      {/* 2FA SETUP MODAL */}
-      <AnimatePresence>
-        {show2faModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShow2faModal(false)} />
-            
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md glass bg-slate-900 rounded-[2rem] border border-white/10 p-8 shadow-2xl space-y-6"
-            >
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-12 h-12 bg-primary-500/10 text-primary-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <QrCode size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-200">Configure Two-Factor Auth</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Scan the QR code below using your Google Authenticator or Duo app</p>
-                </div>
-              </div>
-
-              {/* QR Code Container */}
-              <div className="bg-white p-4 rounded-3xl max-w-[180px] mx-auto shadow-lg flex flex-col items-center justify-center gap-2">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`otpauth://totp/Locker24:${profile.email || 'user'}?secret=JBSWY3DPEHPK3PXP&issuer=Locker24`)}`}
-                  alt="2FA QR Code" 
-                  className="w-full aspect-square object-contain rounded-xl"
-                />
-                <span className="text-[9px] font-extrabold tracking-widest uppercase text-slate-700 select-all">JBSW Y3DP EHPK 3PXP</span>
-              </div>
-
-              <div className="space-y-4">
-                <Input 
-                  label="Verification Code" 
-                  type="text" 
-                  placeholder="Enter 6-digit authenticator code" 
-                  icon={Key} 
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0,6))}
-                  required 
-                />
-                
-                {tfaError && (
-                  <div className="flex items-center gap-2 text-xs font-bold text-red-500 bg-red-500/5 py-2 px-3 border border-red-500/15 rounded-xl justify-center">
-                    <AlertCircle size={14} /> {tfaError}
-                  </div>
-                )}
-
-                <div className="flex gap-4 pt-2">
-                  <Button variant="ghost" className="flex-1" onClick={() => setShow2faModal(false)}>Cancel</Button>
-                  <Button 
-                    className="flex-1" 
-                    onClick={handleVerify2fa}
-                    isLoading={isVerifyingTfa}
-                  >
-                    Activate TFA
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ACTIVE SESSIONS MODAL */}
-      <AnimatePresence>
-        {showSessionsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowSessionsModal(false)} />
-            
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="relative w-full max-w-lg glass bg-slate-900 rounded-[2rem] border border-white/10 p-8 shadow-2xl space-y-6"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary-500/10 text-primary-500 rounded-xl flex items-center justify-center">
-                  <Shield size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-200">Security Sessions Console</h3>
-                  <p className="text-xs text-muted-foreground">Manage active connection sessions inside the system</p>
-                </div>
-              </div>
-
-              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                {sessions.map((sess) => (
-                  <div key={sess.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/10 transition-colors">
-                    <div>
-                      <div className="font-bold text-slate-200 text-sm flex items-center gap-1.5">
-                        {sess.device}
-                        {sess.current && <span className="text-[9px] font-extrabold text-primary-500 bg-primary-500/10 py-0.5 px-2 rounded-full border border-primary-500/20">CURRENT</span>}
-                      </div>
-                      <div className="text-xs text-slate-500 mt-1">IP: {sess.ip} • Last active {sess.active}</div>
-                    </div>
-                    {!sess.current && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-red-500 hover:bg-red-500/10"
-                        onClick={() => {
-                          setSessions(sessions.filter(s => s.id !== sess.id));
-                          showToast('Login session revoked successfully.');
-                        }}
-                      >
-                        Revoke
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button onClick={() => setShowSessionsModal(false)}>Close Console</Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* VAULT PIN CONFIGURATION MODAL */}
       <AnimatePresence>

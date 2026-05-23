@@ -18,6 +18,8 @@ import ActivityLogPage from './pages/dashboard/ActivityLogPage';
 import SharedDocumentPage from './pages/share/SharedDocumentPage';
 import NotFoundPage from './pages/NotFoundPage';
 import TermsPrivacyPage from './pages/legal/TermsPrivacyPage';
+import FoldersPage from './pages/folders/FoldersPage';
+import FolderDetailPage from './pages/folders/FolderDetailPage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -77,6 +79,18 @@ const AppRouter = () => {
       <Route path="/activity" element={
         <ProtectedRoute>
           <ActivityLogPage />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/folders" element={
+        <ProtectedRoute>
+          <FoldersPage />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/folders/:id" element={
+        <ProtectedRoute>
+          <FolderDetailPage />
         </ProtectedRoute>
       } />
 

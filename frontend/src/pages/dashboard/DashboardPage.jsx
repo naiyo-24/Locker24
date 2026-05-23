@@ -263,7 +263,7 @@ const DashboardPage = () => {
                 <h2 className="text-xl font-bold font-display">Recent Secure Files</h2>
                 <p className="text-sm text-slate-500 mt-0.5">Quick access to recently uploaded records</p>
               </div>
-              <Button variant="outline" className="rounded-2xl px-5 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white self-start sm:self-auto" onClick={() => window.location.href='/documents'}>
+              <Button variant="outline" className="rounded-2xl px-5 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 self-start sm:self-auto" onClick={() => window.location.href='/documents'}>
                 View All Files <ChevronRight size={16} className="ml-1" />
               </Button>
             </div>
